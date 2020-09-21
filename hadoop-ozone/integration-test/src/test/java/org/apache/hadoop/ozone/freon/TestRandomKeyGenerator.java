@@ -36,7 +36,7 @@ import org.junit.Test;
 /**
  * Tests Freon, with MiniOzoneCluster.
  */
-@Ignore("HDDS-3290")
+//@Ignore("HDDS-3290")
 public class TestRandomKeyGenerator {
 
   private static MiniOzoneCluster cluster;
@@ -127,7 +127,7 @@ public class TestRandomKeyGenerator {
   }
 
   @Test
-  @Ignore("HDDS-2011")
+  //@Ignore("HDDS-2011")
   public void bigFileThan2GB() throws Exception {
     RandomKeyGenerator randomKeyGenerator =
         new RandomKeyGenerator((OzoneConfiguration) cluster.getConf());
