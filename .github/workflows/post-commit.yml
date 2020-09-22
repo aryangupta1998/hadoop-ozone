@@ -26,7 +26,7 @@ jobs:
             path: mnt/ozone
         - uses: ./mnt/ozone/.github/buildenv
           with:
-             args: ./mnt/ozone/hadoop-ozone/dev-support/checks/integration.sh -DfailIfNoTests=false -Dtest=TestFreonWithDatanodeFastRestart,TestOMRatisSnapshots,TestOzoneClientKeyGenerator
+             args: ./mnt/ozone/hadoop-ozone/dev-support/checks/integration.sh -DfailIfNoTests=false -Dtest=TestOMRatisSnapshots
           env:
             ITERATIONS: 20
         - uses: actions/upload-artifact@master
