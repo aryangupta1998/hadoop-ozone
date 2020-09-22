@@ -57,7 +57,7 @@ import org.slf4j.event.Level;
 /**
  * Tests the Ratis snaphsots feature in OM.
  */
-@Ignore("HDDS-3966")
+//@Ignore("HDDS-3966")
 public class TestOMRatisSnapshots {
 
   private MiniOzoneHAClusterImpl cluster = null;

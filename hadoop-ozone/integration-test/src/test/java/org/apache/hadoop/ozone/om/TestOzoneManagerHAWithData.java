@@ -85,7 +85,7 @@ public class TestOzoneManagerHAWithData extends TestOzoneManagerHA {
   /**
    * Test client request fails when 2 OMs are down.
    */
-  @Ignore("This test is failing randomly. It will be enabled after fixing it.")
+  //@Ignore("This test is failing randomly. It will be enabled after fixing it.")
   @Test
   public void testTwoOMNodesDown() throws Exception {
     getCluster().stopOzoneManager(1);

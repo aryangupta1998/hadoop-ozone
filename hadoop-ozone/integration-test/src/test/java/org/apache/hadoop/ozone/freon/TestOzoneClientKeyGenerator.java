@@ -35,7 +35,7 @@ import org.slf4j.event.Level;
 /**
  * Test for OzoneClientKeyGenerator.
  */
-@Ignore("HDDS-3297")
+//@Ignore("HDDS-3297")
 public class TestOzoneClientKeyGenerator {
 
   private String path;

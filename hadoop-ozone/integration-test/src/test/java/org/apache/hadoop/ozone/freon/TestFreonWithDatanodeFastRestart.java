@@ -77,7 +77,7 @@ public class TestFreonWithDatanodeFastRestart {
   }
 
   @Test
-  @Ignore("TODO:HDDS-1160")
+  //@Ignore("TODO:HDDS-1160")
   public void testRestart() throws Exception {
     startFreon();
     StateMachine sm = getStateMachine();
