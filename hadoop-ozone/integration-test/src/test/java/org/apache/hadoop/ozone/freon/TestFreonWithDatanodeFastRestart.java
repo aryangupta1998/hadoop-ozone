@@ -30,7 +30,6 @@ import org.apache.ratis.statemachine.impl.SingleFileSnapshotInfo;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
@@ -77,7 +76,6 @@ public class TestFreonWithDatanodeFastRestart {
   }
 
   @Test
-  //@Ignore("TODO:HDDS-1160")
   public void testRestart() throws Exception {
     startFreon();
     StateMachine sm = getStateMachine();
