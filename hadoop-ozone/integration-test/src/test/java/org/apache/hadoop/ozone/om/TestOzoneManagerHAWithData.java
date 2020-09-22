@@ -35,7 +35,6 @@ import org.apache.hadoop.ozone.om.helpers.OmMultipartInfo;
 import org.apache.hadoop.ozone.om.helpers.OmMultipartUploadCompleteInfo;
 import org.apache.hadoop.test.GenericTestUtils;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -85,7 +84,6 @@ public class TestOzoneManagerHAWithData extends TestOzoneManagerHA {
   /**
    * Test client request fails when 2 OMs are down.
    */
-  //@Ignore("This test is failing randomly. It will be enabled after fixing it.")
   @Test
   public void testTwoOMNodesDown() throws Exception {
     getCluster().stopOzoneManager(1);
