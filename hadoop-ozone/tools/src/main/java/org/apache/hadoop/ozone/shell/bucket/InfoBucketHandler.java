@@ -40,6 +40,7 @@ public class InfoBucketHandler extends BucketHandler {
         .getVolume(address.getVolumeName())
         .getBucket(address.getBucketName());
 
+    System.out.println("Info = "+bucket.getBucketType());
     printObjectAsJson(bucket);
   }
 

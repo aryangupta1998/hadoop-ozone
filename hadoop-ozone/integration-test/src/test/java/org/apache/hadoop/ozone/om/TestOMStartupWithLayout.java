@@ -142,7 +142,7 @@ public class TestOMStartupWithLayout {
     Assert.assertNotNull(bucket);
     Assert.assertEquals(2, bucket.getMetadata().size());
     Assert.assertEquals(isFSOBucket,
-        OzoneFSUtils.isFSOptimizedBucket(bucket.getMetadata()));
+        OzoneFSUtils.isFSOptimizedBucket(bucket.getBucketType()));
     Assert.assertEquals(metadataLayout,
         bucket.getMetadata().get(OZONE_OM_METADATA_LAYOUT));
   }

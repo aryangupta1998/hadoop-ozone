@@ -49,11 +49,7 @@ import org.apache.hadoop.ozone.client.OzoneKey;
 import org.apache.hadoop.ozone.client.OzoneVolume;
 import org.apache.hadoop.ozone.client.io.OzoneOutputStream;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
-import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
-import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfo;
-import org.apache.hadoop.ozone.om.helpers.OmKeyLocationInfoGroup;
-import org.apache.hadoop.ozone.om.helpers.OzoneFileStatus;
-import org.apache.hadoop.ozone.om.helpers.OzoneFSUtils;
+import org.apache.hadoop.ozone.om.helpers.*;
 import org.apache.hadoop.ozone.security.OzoneTokenIdentifier;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenRenewer;
@@ -548,6 +544,7 @@ public class BasicOzoneClientAdapterImpl implements OzoneClientAdapter {
 
   @Override
   public boolean isFSOptimizedBucket() {
-    return OzoneFSUtils.isFSOptimizedBucket(bucket.getMetadata());
+    return bucket.getBucketType().equals(BucketType.FSO);
+    //return OzoneFSUtils.isFSOptimizedBucket(bucket.getMetadata());
   }
 }

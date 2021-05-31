@@ -525,6 +525,7 @@ public class BasicOzoneFileSystem extends FileSystem {
     FileStatus status;
     try {
       status = getFileStatus(f);
+      System.out.println("status = "+status);
     } catch (FileNotFoundException ex) {
       LOG.warn("delete: Path does not exist: {}", f);
       return false;
@@ -534,19 +535,23 @@ public class BasicOzoneFileSystem extends FileSystem {
     boolean result;
 
     if (status.isDirectory()) {
+      System.out.println("CLDR 1");
       LOG.debug("delete: Path is a directory: {}", f);
 
       result = innerDelete(f, recursive);
     } else {
+      System.out.println("CLDR 2");
       LOG.debug("delete: Path is a file: {}", f);
       result = adapter.deleteObject(key);
     }
 
     if (result) {
+      System.out.println("CLDR 3");
       // If this delete operation removes all files/directories from the
       // parent directory, then an empty parent directory must be created.
       createFakeParentDirectory(f);
     }
+    System.out.println("result = "+result);
 
     return result;
   }

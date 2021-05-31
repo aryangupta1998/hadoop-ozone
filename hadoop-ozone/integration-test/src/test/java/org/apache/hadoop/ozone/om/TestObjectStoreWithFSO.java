@@ -31,16 +31,12 @@ import org.apache.hadoop.ozone.MiniOzoneCluster;
 import org.apache.hadoop.ozone.OmUtils;
 import org.apache.hadoop.ozone.OzoneConsts;
 import org.apache.hadoop.ozone.TestDataUtil;
-import org.apache.hadoop.ozone.client.ObjectStore;
-import org.apache.hadoop.ozone.client.OzoneBucket;
-import org.apache.hadoop.ozone.client.OzoneClient;
-import org.apache.hadoop.ozone.client.OzoneKey;
-import org.apache.hadoop.ozone.client.OzoneKeyDetails;
-import org.apache.hadoop.ozone.client.OzoneVolume;
+import org.apache.hadoop.ozone.client.*;
 import org.apache.hadoop.ozone.client.io.KeyOutputStream;
 import org.apache.hadoop.ozone.client.io.OzoneInputStream;
 import org.apache.hadoop.ozone.client.io.OzoneOutputStream;
 import org.apache.hadoop.ozone.om.exceptions.OMException;
+import org.apache.hadoop.ozone.om.helpers.BucketType;
 import org.apache.hadoop.ozone.om.helpers.OmDirectoryInfo;
 import org.apache.hadoop.ozone.om.helpers.OmKeyInfo;
 import org.apache.hadoop.ozone.om.request.TestOMRequestUtils;
@@ -95,27 +91,24 @@ public class TestObjectStoreWithFSO {
    *
    * @throws IOException
    */
-  @BeforeClass
-  public static void init() throws Exception {
+  @BeforeClass public static void init() throws Exception {
     conf = new OzoneConfiguration();
     clusterId = UUID.randomUUID().toString();
     scmId = UUID.randomUUID().toString();
     omId = UUID.randomUUID().toString();
-    TestOMRequestUtils.configureFSOptimizedPaths(conf,
-            true, OMConfigKeys.OZONE_OM_METADATA_LAYOUT_PREFIX);
-    cluster = MiniOzoneCluster.newBuilder(conf)
-            .setClusterId(clusterId)
-            .setScmId(scmId)
-            .setOmId(omId)
-            .build();
+    TestOMRequestUtils.configureFSOptimizedPaths(conf, true,
+        OMConfigKeys.OZONE_OM_METADATA_LAYOUT_PREFIX);
+    cluster = MiniOzoneCluster.newBuilder(conf).setClusterId(clusterId)
+        .setScmId(scmId).setOmId(omId).build();
     cluster.waitForClusterToBeReady();
     // create a volume and a bucket to be used by OzoneFileSystem
-    OzoneBucket bucket = TestDataUtil.createVolumeAndBucket(cluster);
+    OzoneBucket bucket =
+        TestDataUtil.createVolumeAndBucket(cluster, BucketType.FSO);
     volumeName = bucket.getVolumeName();
     bucketName = bucket.getName();
 
-    String rootPath = String.format("%s://%s.%s/",
-            OzoneConsts.OZONE_URI_SCHEME, bucket.getName(),
+    String rootPath = String
+        .format("%s://%s.%s/", OzoneConsts.OZONE_URI_SCHEME, bucket.getName(),
             bucket.getVolumeName());
     // Set the fs.defaultFS and start the filesystem
     conf.set(CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY, rootPath);
@@ -137,7 +130,7 @@ public class TestObjectStoreWithFSO {
   private void deleteRootDir() throws IOException {
     Path root = new Path("/");
     FileStatus[] fileStatuses = fs.listStatus(root);
-
+    System.out.println("before delete = "+fileStatuses.length);
     if (fileStatuses == null) {
       return;
     }
@@ -147,6 +140,7 @@ public class TestObjectStoreWithFSO {
     }
 
     fileStatuses = fs.listStatus(root);
+    System.out.println("after delete = "+fileStatuses.length);
     if (fileStatuses != null) {
       Assert.assertEquals("Delete root failed!", 0, fileStatuses.length);
     }
@@ -450,7 +444,7 @@ public class TestObjectStoreWithFSO {
     createKey(ozoneBucket, key3, 10, input);
 
     // Iterator with key name as prefix.
-
+    System.out.println("keys = "+keys);
     Iterator<? extends OzoneKey> ozoneKeyIterator =
             ozoneBucket.listKeys("/dir1//", null);
 
@@ -485,6 +479,7 @@ public class TestObjectStoreWithFSO {
 
     LinkedList<String> outputKeys = new LinkedList<>();
     while (ozoneKeyIterator.hasNext()) {
+      System.out.println("Hello");
       OzoneKey ozoneKey = ozoneKeyIterator.next();
       outputKeys.add(ozoneKey.getName());
     }
@@ -617,6 +612,40 @@ public class TestObjectStoreWithFSO {
     } catch (OMException e) {
       Assert.assertEquals(KEY_ALREADY_EXISTS, e.getResult());
     }
+  }
+
+  @Test
+  public void testCreateBucketWithBucketType() throws Exception {
+    String volumeName = UUID.randomUUID().toString();
+    String bucketName = UUID.randomUUID().toString();
+    OzoneClient client = cluster.getClient();
+    ObjectStore store = client.getObjectStore();
+    store.createVolume(volumeName);
+    OzoneVolume volume = store.getVolume(volumeName);
+
+    // Case 1: Bucket Type: FSO
+    BucketArgs.Builder builder = BucketArgs.newBuilder();
+    builder.setBucketType(BucketType.FSO);
+    volume.createBucket(bucketName, builder.build());
+    OzoneBucket bucket = volume.getBucket(bucketName);
+    Assert.assertEquals(bucketName, bucket.getName());
+    Assert.assertEquals(BucketType.FSO, bucket.getBucketType());
+
+    // Case 2: Bucket Type: OBJECT_STORE
+    bucketName = UUID.randomUUID().toString();
+    builder.setBucketType(BucketType.OBJECT_STORE);
+    volume.createBucket(bucketName, builder.build());
+    bucket = volume.getBucket(bucketName);
+    Assert.assertEquals(bucketName, bucket.getName());
+    Assert.assertEquals(BucketType.OBJECT_STORE, bucket.getBucketType());
+
+    // Case 3: Bucket Type: Empty
+    bucketName = UUID.randomUUID().toString();
+    builder.setBucketType(BucketType.DEFAULT);
+    volume.createBucket(bucketName, builder.build());
+    bucket = volume.getBucket(bucketName);
+    Assert.assertEquals(bucketName, bucket.getName());
+    Assert.assertEquals(BucketType.DEFAULT, bucket.getBucketType());
   }
 
   private void assertKeyRenamedEx(OzoneBucket bucket, String keyName)

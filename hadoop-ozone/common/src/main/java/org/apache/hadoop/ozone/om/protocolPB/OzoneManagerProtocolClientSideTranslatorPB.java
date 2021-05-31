@@ -473,6 +473,8 @@ public final class OzoneManagerProtocolClientSideTranslatorPB
     InfoBucketResponse resp =
         handleError(submitRequest(omRequest)).getInfoBucketResponse();
 
+    System.out.println("bucketInfo = "+resp.getBucketInfo().getBucketType());
+
     return OmBucketInfo.getFromProtobuf(resp.getBucketInfo());
   }
 

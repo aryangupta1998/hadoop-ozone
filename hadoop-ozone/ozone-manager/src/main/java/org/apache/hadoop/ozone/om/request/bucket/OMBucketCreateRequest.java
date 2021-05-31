@@ -18,66 +18,53 @@
 
 package org.apache.hadoop.ozone.om.request.bucket;
 
+import com.google.common.base.Optional;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.crypto.CipherSuite;
+import org.apache.hadoop.crypto.key.KeyProvider;
+import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension;
+import org.apache.hadoop.fs.CommonConfigurationKeys;
+import org.apache.hadoop.hdds.utils.db.cache.CacheKey;
+import org.apache.hadoop.hdds.utils.db.cache.CacheValue;
+import org.apache.hadoop.ozone.OmUtils;
+import org.apache.hadoop.ozone.OzoneAcl;
+import org.apache.hadoop.ozone.OzoneConsts;
+import org.apache.hadoop.ozone.audit.AuditLogger;
+import org.apache.hadoop.ozone.audit.OMAction;
+import org.apache.hadoop.ozone.om.OMConfigKeys;
+import org.apache.hadoop.ozone.om.OMMetadataManager;
+import org.apache.hadoop.ozone.om.OMMetrics;
+import org.apache.hadoop.ozone.om.OzoneManager;
+import org.apache.hadoop.ozone.om.exceptions.OMException;
+import org.apache.hadoop.ozone.om.helpers.BucketType;
+import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
+import org.apache.hadoop.ozone.om.helpers.OmVolumeArgs;
+import org.apache.hadoop.ozone.om.helpers.OzoneAclUtil;
+import org.apache.hadoop.ozone.om.ratis.utils.OzoneManagerDoubleBufferHelper;
+import org.apache.hadoop.ozone.om.request.OMClientRequest;
+import org.apache.hadoop.ozone.om.request.util.OmResponseUtil;
+import org.apache.hadoop.ozone.om.response.OMClientResponse;
+import org.apache.hadoop.ozone.om.response.bucket.OMBucketCreateResponse;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
+import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.*;
+import org.apache.hadoop.ozone.protocolPB.OMPBHelper;
+import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer;
+import org.apache.hadoop.ozone.security.acl.OzoneObj;
+import org.apache.hadoop.util.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.base.Optional;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.ozone.OmUtils;
-import org.apache.hadoop.ozone.OzoneAcl;
-import org.apache.hadoop.ozone.OzoneConsts;
-import org.apache.hadoop.ozone.om.OMConfigKeys;
-import org.apache.hadoop.ozone.om.helpers.OmVolumeArgs;
-import org.apache.hadoop.ozone.om.helpers.OzoneAclUtil;
-import org.apache.hadoop.ozone.om.ratis.utils.OzoneManagerDoubleBufferHelper;
-import org.apache.hadoop.ozone.om.request.util.OmResponseUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.apache.hadoop.crypto.CipherSuite;
-import org.apache.hadoop.crypto.key.KeyProvider;
-import org.apache.hadoop.crypto.key.KeyProviderCryptoExtension;
-import org.apache.hadoop.fs.CommonConfigurationKeys;
-import org.apache.hadoop.ozone.audit.AuditLogger;
-import org.apache.hadoop.ozone.audit.OMAction;
-import org.apache.hadoop.ozone.om.OMMetadataManager;
-import org.apache.hadoop.ozone.om.OMMetrics;
-import org.apache.hadoop.ozone.om.OzoneManager;
-import org.apache.hadoop.ozone.om.exceptions.OMException;
-import org.apache.hadoop.ozone.om.helpers.OmBucketInfo;
-import org.apache.hadoop.ozone.om.request.OMClientRequest;
-import org.apache.hadoop.ozone.om.response.bucket.OMBucketCreateResponse;
-import org.apache.hadoop.ozone.om.response.OMClientResponse;
-import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos;
-import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos
-    .BucketEncryptionInfoProto;
-import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos
-    .CreateBucketRequest;
-import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos
-    .CreateBucketResponse;
-import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos
-    .BucketInfo;
-import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos
-    .OMRequest;
-import org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos
-    .OMResponse;
-import org.apache.hadoop.ozone.protocolPB.OMPBHelper;
-import org.apache.hadoop.ozone.security.acl.IAccessAuthorizer;
-import org.apache.hadoop.ozone.security.acl.OzoneObj;
-import org.apache.hadoop.util.Time;
-import org.apache.hadoop.hdds.utils.db.cache.CacheKey;
-import org.apache.hadoop.hdds.utils.db.cache.CacheValue;
-
 import static org.apache.hadoop.ozone.om.exceptions.OMException.ResultCodes.BUCKET_ALREADY_EXISTS;
 import static org.apache.hadoop.ozone.om.exceptions.OMException.ResultCodes.VOLUME_NOT_FOUND;
-import static org.apache.hadoop.ozone.om.lock.OzoneManagerLock.Resource.VOLUME_LOCK;
 import static org.apache.hadoop.ozone.om.lock.OzoneManagerLock.Resource.BUCKET_LOCK;
-import static org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos
-    .CryptoProtocolVersionProto.ENCRYPTION_ZONES;
+import static org.apache.hadoop.ozone.om.lock.OzoneManagerLock.Resource.VOLUME_LOCK;
+import static org.apache.hadoop.ozone.protocol.proto.OzoneManagerProtocolProtos.CryptoProtocolVersionProto.ENCRYPTION_ZONES;
 
 /**
  * Handles CreateBucket Request.
@@ -371,24 +358,38 @@ public class OMBucketCreateRequest extends OMClientRequest {
    * other cases, it will
    * write table key entries in OLD_FORMAT(existing format).
    *
-   * @param ozoneManager ozone manager
    * @param omBucketInfo bucket information
    */
-  private void addFSOptimizedBucketDetails(OzoneManager ozoneManager,
-                                           OmBucketInfo omBucketInfo) {
+  private void addFSOptimizedBucketDetails(OzoneManager ozoneManager, OmBucketInfo omBucketInfo) {
     Map<String, String> metadata = omBucketInfo.getMetadata();
     if (metadata == null) {
       metadata = new HashMap<>();
     }
+    BucketType bucketType = omBucketInfo.getBucketType();
     // TODO: Many unit test cases has null config and done a simple null
     //  check now. It can be done later, to avoid massive test code changes.
-    if(StringUtils.isNotBlank(ozoneManager.getOMMetadataLayout())){
-      String metadataLayout = ozoneManager.getOMMetadataLayout();
-      metadata.put(OMConfigKeys.OZONE_OM_METADATA_LAYOUT, metadataLayout);
-      boolean fsPathsEnabled = ozoneManager.getEnableFileSystemPaths();
-      metadata.put(OMConfigKeys.OZONE_OM_ENABLE_FILESYSTEM_PATHS,
-              Boolean.toString(fsPathsEnabled));
-      omBucketInfo.setMetadata(metadata);
-    }
+
+//    if (bucketType.equals(BucketType.FSO)) {
+//      metadata.put(OMConfigKeys.OZONE_OM_METADATA_LAYOUT,
+//          OMConfigKeys.OZONE_OM_METADATA_LAYOUT_PREFIX);
+//      metadata.put(OMConfigKeys.OZONE_OM_ENABLE_FILESYSTEM_PATHS,
+//          Boolean.toString(true));
+//    } else if(bucketType.equals(BucketType.OBJECT_STORE)) {
+//      metadata.put(OMConfigKeys.OZONE_OM_METADATA_LAYOUT,
+//          OMConfigKeys.OZONE_OM_METADATA_LAYOUT_DEFAULT);
+//      metadata.put(OMConfigKeys.OZONE_OM_ENABLE_FILESYSTEM_PATHS,
+//          Boolean.toString(false));
+//    } else {
+//      if(StringUtils.isNotBlank(ozoneManager.getOMMetadataLayout())) {
+//        String metadataLayout = ozoneManager.getOMMetadataLayout();
+//        metadata.put(OMConfigKeys.OZONE_OM_METADATA_LAYOUT, metadataLayout);
+//        boolean fsPathsEnabled = ozoneManager.getEnableFileSystemPaths();
+//        metadata.put(OMConfigKeys.OZONE_OM_ENABLE_FILESYSTEM_PATHS,
+//            Boolean.toString(fsPathsEnabled));
+//      } else {
+//        // TODO Handle case where metadata is empty.
+//      }
+//    }
+//    omBucketInfo.setMetadata(metadata);
   }
 }
