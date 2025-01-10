@@ -344,7 +344,7 @@ public class TestStorageContainerManager {
             cluster.getStorageContainerManager().getScmHAManager()
                 .asSCMHADBTransactionBuffer().flush();
           }
-          return delLog.getFailedTransactionsBatch(2, 0).size() == 0;
+          return delLog.getFailedTransactions(Integer.MAX_VALUE, 0).size() == 0;
         } catch (IOException e) {
           return false;
         }
